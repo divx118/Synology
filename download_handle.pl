@@ -55,11 +55,9 @@ if ($arguments_value[0]) {
 }
 ############### begin of declaring arrays for where to move what, just add more if you want. Note the trailing "/" for the paths. 
 # Don't change mode 0 except for the path. It is used as a fallback when no mode is found or if there is mixed content.
-# change the script_path below for where you have the script and the directory Logging with log.pm
+# change the script_path below for where you have the script.
 $script_path =  "/volume1/Extensions/scripts/"; 
-# change the path below for where you have the script and the directory Logging with log.pm
-use lib qw(/volume1/Extensions/scripts/);
-use Logging::Log;
+
 
 $exclude_file_path = $script_path . "exclude";
 @exclude_array = ("*.[n,N][f,F][o,O]","*.[s,S][f,F][v,V]");
@@ -74,7 +72,7 @@ $dest_array[0] = "/volume1/movie/ready/";
 $file_ext_array[0] = "";
 
 ### video --> 1
-$dest_array[1] = "/volume1/video/1000GbXBMC/tempvideo/";
+$dest_array[1] = "/volume1/video/3000GbXBMC/tempvideo/";
 $file_ext_array[1] = "mpg,avi,mkv,mp4,mov";
 
 ### music --> 2
@@ -82,41 +80,34 @@ $dest_array[2] = "/volume1/music/";
 $file_ext_array[2] = "mp3,flac,ogg";
 
 ### iso --> 3
-$dest_array[3] = "/volume1/video/1000GbXBMC/games/";
+$dest_array[3] = "/volume1/video/3000GbXBMC/games/";
 $file_ext_array[3] = "iso";
 
 ############### end of declaring arrays for where to move what
 
-
-## Initialise logging (comment out if you don't need it - but then also comment out the relevant sections in the code below
-my $log = Logging::Log->new();
-my $log = Logging::Log->new(Handle => \*F);
-my $log = Logging::Log->new(File => "/var/log/download_handle.log", Mode => 'append');
-
-
-$log->entry("#################### Starting download_handle script ###########################");
+print "#################### Starting download_handle script ###########################";
 
 ### Set global variable paths, database stuff etc
 
 $base_path = '/volume1/';
-$unrar = '/usr/syno/bin/unrar';
-$psql_path = '/usr/syno/pgsql/bin/psql';
+$unrar = '/bin/unrar';
+$psql_path = '/bin/psql';
 $DB_user = 'admin';
 $DB_pwd = '';
 $DB_name = 'download';
 
 ### Read seeding downloads
 @result_array = split(';', read_database(8));
-$log->entry("Status 8 result @result_array");
+print "Status 8 result @result_array\n";
 extract_move_files(8);
 ### Read completed downloads
 @result_array = split(";", read_database(5));
-$log->entry("Status 5 result @result_array");
+print "Status 5 result @result_array\n";
 extract_move_files(5);
 ### Read paused downloads
 if ($arguments_value[1]) {
 	@result_array = split(";", read_database(3));
-	$log->entry("Status 3 result @result_array");
+	print "Status 3 result @result_array\n";
 	extract_move_files(3);
 }
 ### extract and move the files to the required location.
@@ -136,18 +127,18 @@ if (-f $download_path) {
 	}
 	else
 	{
-	print "nope\n";
+	print "nope it is a directory\n";
 	}
 
 
 ### check if it is already extracted or copied to the new location
 if (-f $file_done) {
-	print "YES";
+	print "YES\n";
 	if (@_[0] == 5 || @_[0] == 3) {
 		# Status completed time to remove everything.
-		# delete_database($file_name);
+		delete_database($file_name);
 		if (system("rm -rf '$download_path'") != 0) {
-			$log->entry("Failed to remove $download_path");
+			print "Failed to remove $download_path\n";
 			}
 		}
 	next;
@@ -188,8 +179,8 @@ if (-e $download_path) {
 	}
 	}
 	else {
-	$log->entry("Directory $download_path does not exist");
-	$log->entry("Files don't exist. We are going to delete the entry $file_name in the database");
+	print "Directory $download_path does not exist\n";
+	print "Files don't exist. We are going to delete the entry $file_name in the database\n";
 	delete_database($file_name);
 	next;
 	}
@@ -198,7 +189,7 @@ if (-e $download_path) {
 if ($mode !=0 ) {
 	@files = ();
 	my $result = `find "$download_path" -type f |grep -Eiv '\\.r[0-9]\$|\\.r[0-9][0-9]\$|\\.r[0-9][0-9][0-9]\$|\\.rar\$'`;
-	$log->entry("Other files then rar --> $result\n");
+	print "Other files then rar --> $result\n";
 	@files = split ("\n",$result);
 	check_files_ext();
 	}	
@@ -207,25 +198,25 @@ if ($mode < 0) {
 	$mode = 0;
 	}
 
-$log->entry("mode = $mode");
+print "mode = $mode\n";
 
 
 my $dest_path = $dest_array[$mode] . $file_name;
 if (system("mkdir -p '$dest_path'") != 0 ) {
-	$log->entry("mkdir -p '$dest_path' Failed");
+	print "mkdir -p '$dest_path' Failed\n";
 	}
 
 if ($rarlist_array[0] ne "") {
 	for ($j=0;$j<=$#rarlist_array;$j++) {
 		if (system("$unrar e '$rarlist_array[$j]' '$dest_path'" ) != 0) {
-			$log->entry("unrar failed $dest_path $rarlist_array[$j]");
+			print "unrar failed $dest_path $rarlist_array[$j]\n";
 			# Push the failed rar files to the include array so we can rsync them.
 			push(@norar_files,$rarlist_array[$j]);
 
 		}
 		else {
 			@exclude_rar_array = ("*\.[r,R][0-9]","*\.[r,R][0-9][0-9]","*\.[r,R][0-9][0-9][0-9]","*\.[r,R][a,A][r,R]");
-			$log->entry("unrar successfull $dest_path $rarlist_array[$j]");
+			print "unrar successfull $dest_path $rarlist_array[$j]\n";
 		}
 	} #end of for loop $j
 }
@@ -243,9 +234,9 @@ for ($j=0;$j<=$#norar_files;$j++) {
 }
 # push the arrays to include and exclude array for writing the files.
 push (@include_array,@norar_files);
-$log->entry("include_array = @include_array");
+print "include_array = @include_array\n";
 push (@exclude_array,@exclude_rar_array);
-$log->entry("exclude_array = @exclude_array");
+print "exclude_array = @exclude_array\n";
 
 # write the include file.
 @write_line = ();
@@ -258,16 +249,16 @@ write_file($exclude_file_path);
 		
 # using rsync for the rest of the files -extracted archives and -predefined files to skip. @norar_files include
 if ( system("rsync -ar --progress --include-from='$include_file_path' --exclude-from='$exclude_file_path' '$rsync_path' '$dest_path'") != 0 ) {
-		$log->entry("rsync -ar --include-from='$include_file_path' --exclude-from='$exclude_file_path' $rsync_path $dest_path failed");
+		print "rsync -ar --include-from='$include_file_path' --exclude-from='$exclude_file_path' $rsync_path $dest_path failed\n";
 	}
 	else {
-		$log->entry("rsync -ar --include-from='$include_file_path' --exclude-from='$exclude_file_path' $rsync_path $dest_path succesfull");
+		print "rsync -ar --include-from='$include_file_path' --exclude-from='$exclude_file_path' $rsync_path $dest_path succesfull\n";
 		if ( system("touch '$file_done'") != 0 ) {
-			$log->entry("touch $file_done failed");
+			print "touch $file_done failed\n";
 			next;
 		}
 		else {
-			$log->entry("touch $file_done succesfull for $rsync_path");
+			print "touch $file_done succesfull for $rsync_path\n";
 			next;
 		}
 	}
@@ -289,7 +280,7 @@ return $result;
 sub delete_database {
 my $result  = `$psql_path -d $DB_name $DB_user -c "DELETE FROM download_queue WHERE filename = '@_[0]'" -P format=unaligned -R "\;"`;
 # Log the output to see if it was succesfull
-$log->entry("Deleting '@_[0]' from database --> $result");
+print "Deleting '@_[0]' from database --> $result\n";
 return $result;
 }
 
@@ -301,7 +292,7 @@ sub check_files_ext {
 		my @temp = split(/\./,$files[$j]);
 		my $ext = $temp[$#temp];
 		if ($arguments_value[2]) { 
-			$log->entry("ext= $ext");
+			print "ext= $ext\n";
 		}
 		for ($k=1;$k <= $#file_ext_array;$k++) {
 			if ($file_ext_array[$k] =~ /$ext/i) {
@@ -348,7 +339,7 @@ sub check_for_rar {
 				push(@temprarlist_array, $temp);				
 				}
 			}
-		$log->entry("Rar file list from @_[0] --> @rarlist_array1");	
+		print "Rar file list from @_[0] --> @rarlist_array1\n";	
 		return @rarlist_array1;
 	}
 ### Write file from a global array @write_line, full path filename of the file to write is passed in the function.	
@@ -362,6 +353,5 @@ sub write_file {
 	}	
 	close MY_FILE;
 }	
- $log->entry("#################### Stopping download_handle script ###########################");
-# Close the log-file - remove/comment out if you disable logging
-$log->close;
+print "#################### Stopping download_handle script ###########################\n";
+
