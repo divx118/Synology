@@ -85,7 +85,7 @@ $file_ext_array[3] = "iso";
 
 ############### end of declaring arrays for where to move what
 
-print "#################### Starting download_handle script ###########################";
+print "#################### Starting download_handle script ###########################\n";
 
 ### Set global variable paths, database stuff etc
 
@@ -270,7 +270,7 @@ if ( system("rsync -ar --progress --include-from='$include_file_path' --exclude-
 ### Read database returns a list with full path from the torrents downloading depending on which state is passed. For reference the states are listed below.
 # states = {1:'WAITING', 2:'ACTIVE', 3:'PAUSED', 4:'COMPLETING', 5:'COMPLETE', 6:'CHECKING', 8:'SEEDING', 101:'ERROR', 107:'TIMEOUT'}
 sub read_database {
-my $result  = `$psql_path -d $DB_name $DB_user -c "SELECT destination,filename FROM download_queue where status=@_[0]" -P format=unaligned -R "\;"`;
+my $result  = `su -l admin -c \"$psql_path -d $DB_name $DB_user -c \\"SELECT destination,filename FROM download_queue where status=@_[0]\\" -P format=unaligned -R \\;\"`;
 $result =~ s/\|/\//g;
 return $result;
 }
@@ -278,7 +278,7 @@ return $result;
 ### Delete an entry from the database. Filename must be passed. Note that if there are 2 or more entries with the same filename ie from different users all will be deleted.
 # For me this is not a problem, but if you don't want this to happen you will need to also keep track of the user instead of only the filenames.
 sub delete_database {
-my $result  = `$psql_path -d $DB_name $DB_user -c "DELETE FROM download_queue WHERE filename = '@_[0]'" -P format=unaligned -R "\;"`;
+my $result  = `su -l admin -c \"$psql_path -d $DB_name $DB_user -c \\"DELETE FROM download_queue WHERE filename='@_[0]'\\" -P format=unaligned -R \\;\"`;
 # Log the output to see if it was succesfull
 print "Deleting '@_[0]' from database --> $result\n";
 return $result;
